@@ -122,3 +122,16 @@ Row-major (rows of `W`): `row*W+col = 20*400+10 = 8010`. Column-major (cols of `
 ### Quiz: 3D index (W=400, H=500, D=300, x=10, y=20, z=5)
 
 Row-major, `x` fastest: `idx = z*H*W + y*W + x = 5*500*400+20*400+10 = 1,008,010`.
+
+### 3D global thread id (grid-wide linear index)
+
+```cuda
+int x = blockIdx.x*blockDim.x + threadIdx.x; // col, fastest
+int y = blockIdx.y*blockDim.y + threadIdx.y; // row
+int z = blockIdx.z*blockDim.z + threadIdx.z; // depth, slowest
+int W = gridDim.x*blockDim.x;                // provisioned width
+int H = gridDim.y*blockDim.y;                // provisioned height
+int idx = x + y*W + z*W*H;
+```
+
+`x` moves 1/thread, `y` strides one full `W` row, `z` strides one full `W*H` slice — same quotient/remainder pattern as `warp=lane` (`/32`,`%32`) and 2D (`row/col`). For a real `W×H×D` volume with ceil overhang, prefer `idx = z*H*W + y*W + x` with the true `W,H` + `inside()` guard over the provisioned-`W,H` version.
